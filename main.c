@@ -22,7 +22,7 @@ int gap = 50;
 int font_size_big = 60;
 int font_size_sml = 20;
 
-static int lettersCount = 0;
+int lettersCount = 0;
 static float alpha = 1.0f;
 
 void MeWindow();
@@ -52,9 +52,8 @@ int main(void)
 }
 
 void MeWindow(){
-    ClearBackground(TURQUOISE);
-    if (((framesCounter/15)%2) && framesCounter < 120) DrawRectangle((screenWidth/2) - MeasureText(".maxkonrad", font_size_big) / 2, screenHeight/2, 32, 32, BLACK);
-    DrawText(TextSubtext(" maxkonrad", 0, lettersCount), (screenWidth/2) - MeasureText(".maxkonrad", font_size_big), screenHeight/2, font_size_big, Fade(BLACK, alpha));
+    ClearBackground(BLACK);
+    if (((framesCounter/15)%2)) DrawText(TextSubtext("maxkonrad", 0, lettersCount), (screenWidth/2) - MeasureText("maxkonrad", font_size_big)/2, screenHeight/2, font_size_big, Fade(TURQUOISE, alpha));
 }
 
 void TitleWindow(){
@@ -91,28 +90,29 @@ void Update(){
         case ME:
         {
             framesCounter++;
-            if (framesCounter/12)       // Every 12 frames, one more letter!
+            if (framesCounter%15 == 0)       // Every 12 frames, one more letter!
             {
                 lettersCount++;
-                framesCounter = 0;
             }
 
             if (lettersCount >= 9)     // When all letters have appeared, just fade out everything
             {
-                alpha -= 0.02f;
+                alpha -= 0.01f;
 
                 if (alpha <= 0.0f) {
                     alpha = 0.0f;
 
                 }
             }
-            if (framesCounter > 360)
+            if (framesCounter == 300)
             {
                 currentScreen = TITLE;
+                framesCounter = 0;
             }
         } break;
         case TITLE:
         {
+
             if (IsKeyPressed(KEY_ENTER) || IsGestureDetected(GESTURE_TAP))
             {
                 currentScreen = GAMEPLAY;
@@ -145,19 +145,14 @@ void Render(){
         } break;
         case TITLE:
         {
-
-
+            TitleWindow();
         } break;
         case GAMEPLAY:
         {
-            TitleWindow();
-
+            //TODO GAME LOOP
         } break;
         case ENDING:
         {
-            DrawRectangle(0, 0, screenWidth, screenHeight, BLUE);
-            DrawText("ENDING SCREEN", 20, 20, 40, DARKBLUE);
-            DrawText("PRESS ENTER or TAP to RETURN to TITLE SCREEN", 120, 220, 20, DARKBLUE);
 
         } break;
         default: break;
