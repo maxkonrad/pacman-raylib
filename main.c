@@ -19,8 +19,8 @@ float edge_angle = 65.0f;
 int rising = 1;
 
 int gap = 50;
-int font_size_big = 60;
-int font_size_sml = 20;
+int font_size_big = 80;
+int font_size_sml = 30;
 
 int lettersCount = 0;
 static float alpha = 1.0f;
@@ -81,7 +81,7 @@ void TitleWindow(){
     rlPopMatrix();
 
     DrawText("Pac-Man", (int) (screenWidth/2) - MeasureText("Pac-Man", font_size_big)/2,  (screenHeight/2) - (int) radius - 2 * gap, font_size_big, DARKBLUE);
-    DrawText("Press enter to play!",(int) (screenWidth/2) - MeasureText("Press enter to play!", font_size_sml)/2, (screenHeight/2) + (int) radius + gap, font_size_sml, RED);
+    DrawText("Press enter to play!",(int) (screenWidth/2) - MeasureText("Press enter to play!", font_size_sml)/2, (screenHeight/2) + (int) radius + gap / 2, font_size_sml, RED);
 }
 
 void Update(){
