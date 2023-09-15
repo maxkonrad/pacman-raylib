@@ -51,6 +51,7 @@ typedef struct Ghost
     int ypos;
     GhostMode mode;
     int isOnDot;
+    Color color;
 } Ghosts;
 
 int LEVEL[23][20] = {
@@ -94,16 +95,10 @@ int font_size_sml = 30;
 int lettersCount = 0;
 static float alpha = 1.0f;
 
-int GhostStatus = 0;
-int PacmanDirection = 0;
-
 void DrawBlank(int column, int row);
 void DrawWall(int column, int row);
 void DrawDot(int column, int row);
-void DrawBlinky(int column, int row);
-void DrawPinky(int column, int row);
-void DrawInky(int column, int row);
-void DrawClyde(int column, int row);
+void DrawGhost(int column, int row, Ghosts ghost);
 void DrawPill(int column, int row);
 void DrawPacman(int column, int row);
 void DrawLairDoor(int column, int row);
@@ -125,6 +120,8 @@ void RenderMap();
 
 void UpdateGameplay();
 void CheckPlayPause();
+
+void UpdatePacman();
 
 void Update();
 void Render();
@@ -286,28 +283,45 @@ void RenderMap()
     {
         for (j = 0; j < GAME_HEIGHT; j++)
         {
-            if (LEVEL[j][i] == 0)
+            switch (LEVEL[j][i])
+            {
+            case 0:
                 DrawBlank(i, j);
-            if (LEVEL[j][i] == 1)
+                break;
+            case 1:
                 DrawWall(i, j);
-            if (LEVEL[j][i] == 2)
+                break;
+            case 2:
                 DrawDot(i, j);
-            if (LEVEL[j][i] == 3)
-                DrawBlinky(i, j);
-            if (LEVEL[j][i] == 4)
-                DrawPinky(i, j);
-            if (LEVEL[j][i] == 5)
-                DrawInky(i, j);
-            if (LEVEL[j][i] == 6)
-                DrawClyde(i, j);
-            if (LEVEL[j][i] == 7)
+                break;
+            case 3:
+                DrawGhost(i, j, Blinky);
+                break;
+            case 4:
+                DrawGhost(i, j, Pinky);
+                break;
+            case 5:
+                DrawGhost(i, j, Inky);
+                break;
+            case 6:
+                DrawGhost(i, j, Clyde);
+                break;
+            case 7:
                 DrawPill(i, j);
-            if (LEVEL[j][i] == 8)
+                break;
+            case 8:
                 DrawPacman(i, j);
-            if (LEVEL[j][i] == 9)
+                break;
+            case 9:
                 DrawBlank(i, j);
-            if (LEVEL[j][i] == 10)
+                break;
+            case 10:
                 DrawLairDoor(i, j);
+                break;
+            default:
+                // handle any unexpected values
+                break;
+            }
         }
     }
 }
@@ -328,33 +342,9 @@ void DrawDot(int column, int row)
     DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 8, YELLOW);
 }
 
-void DrawBlinky(int column, int row)
+void DrawGhost(int column, int row, Ghosts ghost)
 {
-    if (GhostStatus == 1)
-        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, DARKBLUE);
-    else
-        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, RED);
-}
-
-void DrawPinky(int column, int row)
-{
-    if (GhostStatus == 1)
-        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, DARKBLUE);
-    else
-        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, PINK);
-}
-
-void DrawInky(int column, int row)
-{
-    if (GhostStatus == 1)
-        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, DARKBLUE);
-    else
-        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, TURQUOISE);
-}
-
-void DrawClyde(int column, int row)
-{
-    if (GhostStatus == 1)
+    if (ghost.mode == 3)
         DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, DARKBLUE);
     else
         DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, ORANGE);
@@ -385,14 +375,14 @@ void DrawPacman(int column, int row)
     rlPushMatrix();
     rlTranslatef(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE,
                  ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, 0);
-    rlRotatef(rotation + PacmanDirection * 90, 0, 0, -1);
+    rlRotatef(rotation + pacman.direction * 90, 0, 0, -1);
     DrawCircleSector((Vector2){0, 0}, (float)SQUARE_SIZE / 3, 0, 180, segments, YELLOW);
     rlPopMatrix();
 
     rlPushMatrix();
     rlTranslatef(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE,
                  ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, 0);
-    rlRotatef(-rotation + PacmanDirection * 90, 0, 0, -1);
+    rlRotatef(-rotation + pacman.direction * 90, 0, 0, -1);
     DrawCircleSector((Vector2){0, 0}, SQUARE_SIZE / 3, 0, 180, segments, YELLOW);
     rlPopMatrix();
 }
@@ -456,20 +446,22 @@ void UpdatePacman()
 {
     if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT))
     {
-        if (LEVEL[pacman.ypos][pacman.xpos - 1] == 3)
-            currentPlayStatus = LOSE;
-        if (LEVEL[pacman.ypos][pacman.xpos - 1] == 4)
-            currentPlayStatus = LOSE;
-        if (LEVEL[pacman.ypos][pacman.xpos - 1] == 5)
-            currentPlayStatus = LOSE;
-        if (LEVEL[pacman.ypos][pacman.xpos - 1] == 6)
-            currentPlayStatus = LOSE;
-        if (LEVEL[pacman.ypos][pacman.xpos - 1] == 0)
+        int adjacentCell = LEVEL[pacman.ypos][pacman.xpos - 1];
+
+        switch (adjacentCell)
         {
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+            currentPlayStatus = LOSE;
+            break;
+        case 0:
             LEVEL[pacman.ypos][pacman.xpos] = 0;
             LEVEL[pacman.ypos][pacman.xpos - 1] = 8;
             pacman.xpos = pacman.xpos - 1;
             pacman.direction = 0;
+            break;
         }
     }
 }
