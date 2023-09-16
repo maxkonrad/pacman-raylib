@@ -21,7 +21,8 @@ typedef enum PlayScreen
     START,
     PAUSE,
     PLAY,
-    LOSE
+    LOSE,
+    WIN
 } PlayScreen;
 typedef enum GhostMode
 {
@@ -30,6 +31,13 @@ typedef enum GhostMode
     SCATTER,
     FRIGHTENED
 } GhostMode;
+
+typedef enum Direction {
+    LEFT,
+    DOWN,
+    RIGHT,
+    UP
+} Direction;
 
 GameScreen currentScreen = ME;
 PlayScreen currentPlayStatus = START;
@@ -50,9 +58,25 @@ typedef struct Ghost
     int xpos;
     int ypos;
     GhostMode mode;
-    int isOnDot;
+    bool isOnDot;
     Color color;
 } Ghosts;
+
+int DIRECTION_KEYS[] = {
+    [LEFT] = KEY_LEFT,
+    [RIGHT] = KEY_RIGHT,
+    [UP] = KEY_UP,
+    [DOWN] = KEY_DOWN,
+    
+};
+
+Vector2 DIRECTION_MOVES[] = {
+    [LEFT] = {-1, 0},
+    [RIGHT] = {1, 0},
+    [UP] = {0, -1},
+    [DOWN] = {0, 1}
+    
+};
 
 int LEVEL[23][20] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
@@ -65,11 +89,11 @@ int LEVEL[23][20] = {
     {1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1},
     {0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
     {0, 0, 0, 1, 2, 1, 2, 1, 10, 10, 10, 10, 1, 2, 1, 2, 1, 0, 0, 0},
-    {1, 1, 1, 1, 2, 1, 2, 1, 9, 9, 9, 9, 1, 2, 1, 2, 1, 1, 1, 1},
+    {1, 1, 1, 1, 2, 1, 2, 1, 3, 4, 5, 6, 1, 2, 1, 2, 1, 1, 1, 1},
     {1, 0, 0, 0, 2, 2, 2, 1, 9, 9, 9, 9, 1, 2, 2, 2, 0, 0, 0, 1},
     {1, 1, 1, 1, 2, 1, 2, 1, 9, 9, 9, 9, 1, 2, 1, 2, 1, 1, 1, 1},
     {0, 0, 0, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 0, 0, 0},
-    {0, 0, 0, 1, 2, 2, 2, 0, 3, 8, 4, 5, 6, 2, 2, 2, 1, 0, 0, 0},
+    {0, 0, 0, 1, 2, 2, 2, 0, 0, 8, 0, 0, 0, 2, 2, 2, 1, 0, 0, 0},
     {1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1},
     {1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1},
     {1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2, 1, 1, 2, 1},
@@ -106,11 +130,12 @@ void DrawLairDoor(int column, int row);
 void DrawOutlinedText(const char *text, int posX, int posY, int fontSize, Color color, int outlineSize, Color outlineColor);
 
 int LevelCounter = 0;
-Ghosts Blinky = {11, 10, LAIR, 0};
-Ghosts Pinky = {10, 10, LAIR, 0};
-Ghosts Inky = {9, 10, LAIR, 0};
-Ghosts Clyde = {8, 10, LAIR, 0};
-struct Pacman pacman = {false, 9, 14, -1};
+int GameScore = 0;
+Ghosts Blinky = {11, 10, LAIR, false, RED};
+Ghosts Pinky = {10, 10, LAIR, false, PINK};
+Ghosts Inky = {9, 10, LAIR, false, ORANGE};
+Ghosts Clyde = {8, 10, LAIR, false, TURQUOISE};
+struct Pacman pacman = {false, 9, 14, 0};
 double time;
 int score = 0;
 
@@ -127,6 +152,7 @@ void Update();
 void Render();
 
 static int framesCounter = 0;
+
 
 int main(void)
 {
@@ -173,14 +199,14 @@ void TitleWindow()
 
     rlPushMatrix();
     rlTranslatef(center.x, center.y, 0);
-    rlRotatef(rotation - 90.0f, 0, 0, -1);
+    rlRotatef(rotation, 0, 0, -1);
     DrawCircleSector((Vector2){0, 0}, (float)radius, 0, 180, segments, YELLOW);
     DrawCircle((int)radius / 2, -(int)radius / 2, radius / 10, BLACK);
     rlPopMatrix();
 
     rlPushMatrix();
     rlTranslatef(center.x, center.y, 0);
-    rlRotatef(-rotation - 90.0f, 0, 0, -1);
+    rlRotatef(-rotation, 0, 0, -1);
     DrawCircleSector((Vector2){0, 0}, radius, 0, 180, segments, YELLOW);
     rlPopMatrix();
 
@@ -319,7 +345,6 @@ void RenderMap()
                 DrawLairDoor(i, j);
                 break;
             default:
-                // handle any unexpected values
                 break;
             }
         }
@@ -347,7 +372,7 @@ void DrawGhost(int column, int row, Ghosts ghost)
     if (ghost.mode == 3)
         DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, DARKBLUE);
     else
-        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, ORANGE);
+        DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, ghost.color);
 }
 
 void DrawPill(int column, int row)
@@ -408,26 +433,46 @@ void UpdateGameplay()
     case START:
     {
         DrawOutlinedText("Press Enter to Start the Game!", center.x - MeasureText("Press Enter to Start the Game!", font_size_sml) / 2, center.y, font_size_sml, BLACK, 1, WHITE);
-        if (IsKeyPressed(KEY_ENTER))
+        if (IsKeyPressed(KEY_ENTER)){
             currentPlayStatus = PLAY;
-        pacman.isMoving = false;
+            pacman.isMoving = true;
+        }
     }
     break;
     case PAUSE:
     {
         CheckPlayPause();
-        DrawOutlinedText("⏸ GAME PAUSED ⏸", center.x - MeasureText("⏸GAME PAUSED ⏸", font_size_sml) / 2, center.y, font_size_sml, BLACK, 1, WHITE);
-        pacman.isMoving = false;
+        DrawOutlinedText("| | GAME PAUSED | |", center.x - MeasureText("| | GAME PAUSED | |", font_size_sml) / 2, center.y, font_size_sml, BLACK, 1, WHITE);
+        
     }
     break;
     case PLAY:
     {
         CheckPlayPause();
-        pacman.isMoving = true;
+        // Move Pacman
+        UpdatePacman();
+        
+        // Check collision with ghosts
+        
+        // Move Ghosts
+        
+        // Check collision with ghosts again
+        
+        // Check if a dot is eaten
+        
+        // Check if a power pill has eaten
+        
+        // Check ghost mode
+        
+        // Check finish
     }
     case LOSE:
     {
-    }
+    } break;
+    
+    case WIN:{
+        
+    } break;
     }
 }
 
@@ -435,32 +480,60 @@ void CheckPlayPause()
 {
     if (IsKeyPressed(KEY_ENTER))
     {
-        if (currentPlayStatus == PLAY)
+        if (currentPlayStatus == PLAY){
             currentPlayStatus = PAUSE;
-        else
+            pacman.isMoving = false;
+        }
+        else{
             currentPlayStatus = PLAY;
+            pacman.isMoving = true;
+        }
     }
 }
 
-void UpdatePacman()
-{
-    if (IsKeyPressed(KEY_A) || IsKeyPressed(KEY_LEFT))
-    {
-        int adjacentCell = LEVEL[pacman.ypos][pacman.xpos - 1];
-
-        switch (adjacentCell)
-        {
-        case 3:
-        case 4:
-        case 5:
-        case 6:
-            currentPlayStatus = LOSE;
-            break;
-        case 0:
-            LEVEL[pacman.ypos][pacman.xpos] = 0;
-            LEVEL[pacman.ypos][pacman.xpos - 1] = 8;
-            pacman.xpos = pacman.xpos - 1;
-            pacman.direction = 0;
+void UpdatePacman() {
+    for (Direction dir = LEFT; dir <= UP; dir++) {
+        if (IsKeyPressed(DIRECTION_KEYS[dir])) {
+            Vector2 move = DIRECTION_MOVES[dir];
+            int newX = pacman.xpos + move.x;
+            int newY = pacman.ypos + move.y;
+            
+            int adjacentCell = LEVEL[newY][newX];
+            
+            switch (adjacentCell) {
+                case 3:
+                case 4:
+                case 5:
+                case 6:
+                    currentPlayStatus = LOSE;
+                    break;
+                case 0:
+                    LEVEL[pacman.ypos][pacman.xpos] = 0;
+                    LEVEL[newY][newX] = 8;
+                    pacman.xpos = newX;
+                    pacman.ypos = newY;
+                    pacman.direction = dir;
+                    break;
+                case 2:
+                    LEVEL[pacman.ypos][pacman.xpos] = 0;
+                    LEVEL[newY][newX] = 8;
+                    pacman.xpos = newX;
+                    pacman.ypos = newY;
+                    pacman.direction = dir;
+                    GameScore += 200;
+                    break;
+                case 7:
+                    LEVEL[pacman.ypos][pacman.xpos] = 0;
+                    LEVEL[newY][newX] = 8;
+                    pacman.xpos = newX;
+                    pacman.ypos = newY;
+                    pacman.direction = dir;
+                    GameScore += 500;
+                    // TODO: Implement ghost scare mode
+                    break;
+                default:
+                    break;
+            }
             break;
         }
     }
