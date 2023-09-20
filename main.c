@@ -449,19 +449,11 @@ void UpdateGameplay()
     case PLAY:
     {
         CheckPlayPause();
-        // Move Pacman
         UpdatePacman();
         
-        // Check collision with ghosts
-        
         // Move Ghosts
-        
         // Check collision with ghosts again
-        
-        // Check if a dot is eaten
-        
-        // Check if a power pill has eaten
-        
+                
         // Check ghost mode
         
         // Check finish
