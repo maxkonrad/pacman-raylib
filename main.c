@@ -9,6 +9,20 @@
 #define GAME_HEIGHT 23
 #define SQUARE_SIZE 30
 
+typedef enum MapNumbers
+{
+    BLANKSPACE = 0,
+    WALL,
+    DOT,
+    BLINKY,
+    PINKY,
+    INKY,
+    CLYDE,
+    PILL,
+    PACMAN,
+    LAIR
+} MapNumbers;
+
 typedef enum GameScreen
 {
     ME,
@@ -26,9 +40,7 @@ typedef enum PlayScreen
 } PlayScreen;
 typedef enum GhostMode
 {
-    LAIR,
     CHASE,
-    SCATTER,
     FRIGHTENED
 } GhostMode;
 
@@ -58,8 +70,10 @@ typedef struct Ghost
     int xpos;
     int ypos;
     GhostMode mode;
-    bool isOnDot;
     Color color;
+    int nextDirection;
+    MapNumbers num;
+    MapNumbers lastNum;
 } Ghosts;
 
 int DIRECTION_KEYS[] = {
@@ -80,7 +94,7 @@ Vector2 DIRECTION_MOVES[] = {
 
 int LEVEL[23][20] = {
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-    {1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1},
+    {1, 7, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 7, 1},
     {1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1},
     {1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1},
     {1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1},
@@ -88,7 +102,7 @@ int LEVEL[23][20] = {
     {1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1},
     {1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1},
     {0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-    {0, 0, 0, 1, 2, 1, 2, 1, 10, 10, 10, 10, 1, 2, 1, 2, 1, 0, 0, 0},
+    {0, 0, 0, 1, 2, 1, 2, 1, 9, 9, 9, 9, 1, 2, 1, 2, 1, 0, 0, 0},
     {1, 1, 1, 1, 2, 1, 2, 1, 3, 4, 5, 6, 1, 2, 1, 2, 1, 1, 1, 1},
     {1, 0, 0, 0, 2, 2, 2, 1, 9, 9, 9, 9, 1, 2, 2, 2, 0, 0, 0, 1},
     {1, 1, 1, 1, 2, 1, 2, 1, 9, 9, 9, 9, 1, 2, 1, 2, 1, 1, 1, 1},
@@ -100,7 +114,7 @@ int LEVEL[23][20] = {
     {1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1},
     {1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1},
     {1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1},
-    {1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1},
+    {1, 7, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 7, 1},
     {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
 
 Vector2 center = {(float)screenWidth / 2, (float)screenHeight / 2};
@@ -115,9 +129,12 @@ int rising = 1;
 int gap = 50;
 int font_size_big = 80;
 int font_size_sml = 30;
+int i, j;
 
 int lettersCount = 0;
 static float alpha = 1.0f;
+int abs(int n);
+int ghostMoveRandomPossibility = 15;
 
 void DrawBlank(int column, int row);
 void DrawWall(int column, int row);
@@ -131,13 +148,20 @@ void DrawOutlinedText(const char *text, int posX, int posY, int fontSize, Color 
 
 int LevelCounter = 0;
 int GameScore = 0;
-Ghosts Blinky = {11, 10, LAIR, false, RED};
-Ghosts Pinky = {10, 10, LAIR, false, PINK};
-Ghosts Inky = {9, 10, LAIR, false, ORANGE};
-Ghosts Clyde = {8, 10, LAIR, false, TURQUOISE};
+Ghosts ghosts[4] = {
+    {11, 10, CHASE, RED, BLINKY, LAIR},
+    {10, 10, CHASE, PINK, PINKY, LAIR},
+    {9, 10, CHASE, ORANGE, INKY, LAIR},
+    {8, 10, CHASE, TURQUOISE, CLYDE, LAIR}
+};
 struct Pacman pacman = {false, 9, 14, 0};
-double time;
+
 int score = 0;
+double time;
+double start_time;
+double passed_time;
+double frightened_time;
+double frightened_start_time;
 
 void MeWindow();
 void TitleWindow();
@@ -145,8 +169,10 @@ void RenderMap();
 
 void UpdateGameplay();
 void CheckPlayPause();
-
+void CheckGhostsFrightened();
+void MoveGhost(Ghosts ghost, int randomPercent);
 void UpdatePacman();
+void UpdateGhosts();
 
 void Update();
 void Render();
@@ -303,7 +329,6 @@ void Render()
 
 void RenderMap()
 {
-    int i, j;
     ClearBackground(BLACK);
     for (i = 0; i < GAME_WIDTH; i++)
     {
@@ -311,38 +336,35 @@ void RenderMap()
         {
             switch (LEVEL[j][i])
             {
-            case 0:
+            case BLANKSPACE:
                 DrawBlank(i, j);
                 break;
-            case 1:
+            case WALL:
                 DrawWall(i, j);
                 break;
-            case 2:
+            case DOT:
                 DrawDot(i, j);
                 break;
-            case 3:
-                DrawGhost(i, j, Blinky);
+            case BLINKY:
+                DrawGhost(i, j, ghosts[BLINKY - 3]);
                 break;
-            case 4:
-                DrawGhost(i, j, Pinky);
+            case PINKY:
+                DrawGhost(i, j, ghosts[PINKY - 3]);
                 break;
-            case 5:
-                DrawGhost(i, j, Inky);
+            case INKY:
+                DrawGhost(i, j, ghosts[INKY - 3]);
                 break;
-            case 6:
-                DrawGhost(i, j, Clyde);
+            case CLYDE:
+                DrawGhost(i, j, ghosts[CLYDE - 3]);
                 break;
-            case 7:
+            case PILL:
                 DrawPill(i, j);
                 break;
-            case 8:
+            case PACMAN:
                 DrawPacman(i, j);
                 break;
-            case 9:
+            case LAIR:
                 DrawBlank(i, j);
-                break;
-            case 10:
-                DrawLairDoor(i, j);
                 break;
             default:
                 break;
@@ -369,7 +391,7 @@ void DrawDot(int column, int row)
 
 void DrawGhost(int column, int row, Ghosts ghost)
 {
-    if (ghost.mode == 3)
+    if (ghost.mode == FRIGHTENED)
         DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, DARKBLUE);
     else
         DrawCircle(ZerothSqPx.x + (SQUARE_SIZE / 2) + column * SQUARE_SIZE, ZerothSqPx.y + (SQUARE_SIZE / 2) + row * SQUARE_SIZE, SQUARE_SIZE / 3, ghost.color);
@@ -435,6 +457,7 @@ void UpdateGameplay()
         DrawOutlinedText("Press Enter to Start the Game!", center.x - MeasureText("Press Enter to Start the Game!", font_size_sml) / 2, center.y, font_size_sml, BLACK, 1, WHITE);
         if (IsKeyPressed(KEY_ENTER)){
             currentPlayStatus = PLAY;
+            start_time = GetTime();
             pacman.isMoving = true;
         }
     }
@@ -448,13 +471,14 @@ void UpdateGameplay()
     break;
     case PLAY:
     {
+        time = GetTime();
+        passed_time = time - start_time;
         CheckPlayPause();
         UpdatePacman();
-        
+        CheckGhostsFrightened();
         // Move Ghosts
+        UpdateGhosts();
         // Check collision with ghosts again
-                
-        // Check ghost mode
         
         // Check finish
     }
@@ -493,20 +517,20 @@ void UpdatePacman() {
             int adjacentCell = LEVEL[newY][newX];
             
             switch (adjacentCell) {
-                case 3:
-                case 4:
-                case 5:
-                case 6:
+                case BLINKY:
+                case PINKY:
+                case INKY:
+                case CLYDE:
                     currentPlayStatus = LOSE;
                     break;
-                case 0:
+                case BLANKSPACE:
                     LEVEL[pacman.ypos][pacman.xpos] = 0;
                     LEVEL[newY][newX] = 8;
                     pacman.xpos = newX;
                     pacman.ypos = newY;
                     pacman.direction = dir;
                     break;
-                case 2:
+                case DOT:
                     LEVEL[pacman.ypos][pacman.xpos] = 0;
                     LEVEL[newY][newX] = 8;
                     pacman.xpos = newX;
@@ -514,14 +538,18 @@ void UpdatePacman() {
                     pacman.direction = dir;
                     GameScore += 200;
                     break;
-                case 7:
+                case PILL:
                     LEVEL[pacman.ypos][pacman.xpos] = 0;
                     LEVEL[newY][newX] = 8;
                     pacman.xpos = newX;
                     pacman.ypos = newY;
                     pacman.direction = dir;
                     GameScore += 500;
-                    // TODO: Implement ghost scare mode
+                    frightened_start_time = GetTime();
+                    for (int c = 0; c < 4; c++){
+                        ghosts[c].mode = FRIGHTENED;
+                    }
+                    
                     break;
                 default:
                     break;
@@ -529,4 +557,73 @@ void UpdatePacman() {
             break;
         }
     }
+}
+
+void CheckGhostsFrightened(){
+    if (ghosts[0].mode == FRIGHTENED){
+        frightened_time = time - frightened_start_time;
+        if (frightened_time >= 4){
+            for (int c = 0; c < 4; c++){
+                ghosts[c].mode = CHASE;
+            }
+        }
+    }
+}
+
+void UpdateGhosts(){
+    if (!((int) time % 2) && time == (int) time){
+        for (int c = 0; c < 4; c++){
+                MoveGhost(ghosts[c], GetRandomValue(1,100));
+            }
+    }
+}
+
+void MoveGhost(Ghosts ghost, int randomPercent){
+    Vector2 move;
+    if (randomPercent < ghostMoveRandomPossibility){
+        int dir = GetRandomValue(LEFT, UP);
+        move = DIRECTION_MOVES[dir];       
+    } else {
+        if ((abs(pacman.xpos - ghost.xpos) - abs(pacman.ypos - ghost.ypos)) >= 0){
+            if ((pacman.ypos - ghost.ypos) > 0){
+                move = DIRECTION_MOVES[UP];
+            } else {
+                move = DIRECTION_MOVES[DOWN];
+            }
+        } else{
+            if ((pacman.xpos - ghost.xpos) > 0){
+                move = DIRECTION_MOVES[RIGHT];
+            } else {
+                move = DIRECTION_MOVES[LEFT];
+            }
+        }
+    }
+    if (ghost.mode == FRIGHTENED) {
+        move.x *= -1;
+        move.y *= -1;
+    }
+    
+    int newX = ghost.xpos + move.x;
+    int newY = ghost.ypos + move.y;
+    int nextCell = LEVEL[newY][newX];
+    
+    switch (nextCell) {
+                case 8:
+                    currentPlayStatus = LOSE;
+                    break;
+                case 0:
+                case 2:
+                case 7:
+                    LEVEL[ghost.ypos][ghost.xpos] = ghost.lastNum;
+                    LEVEL[newY][newX] = ghost.num;
+                    ghost.xpos = newX;
+                    ghost.ypos = newY;
+                    break;
+                default:
+                    break;
+            }
+}
+
+int abs(int n) {
+    return (n < 0) ? -n : n;
 }
