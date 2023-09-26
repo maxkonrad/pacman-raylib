@@ -11,7 +11,7 @@
 
 typedef enum MapNumbers
 {
-    BLANKSPACE = 0,
+    BLANKSPACE,
     WALL,
     DOT,
     BLINKY,
@@ -44,7 +44,8 @@ typedef enum GhostMode
     FRIGHTENED
 } GhostMode;
 
-typedef enum Direction {
+typedef enum Direction
+{
     LEFT,
     DOWN,
     RIGHT,
@@ -71,25 +72,24 @@ typedef struct Ghost
     int ypos;
     GhostMode mode;
     Color color;
-    int nextDirection;
     MapNumbers num;
     MapNumbers lastNum;
 } Ghosts;
 
 int DIRECTION_KEYS[] = {
     [LEFT] = KEY_LEFT,
-    [RIGHT] = KEY_RIGHT,
-    [UP] = KEY_UP,
     [DOWN] = KEY_DOWN,
-    
+    [RIGHT] = KEY_RIGHT,
+    [UP] = KEY_UP
+
 };
 
 Vector2 DIRECTION_MOVES[] = {
     [LEFT] = {-1, 0},
+    [DOWN] = {0, 1},
     [RIGHT] = {1, 0},
-    [UP] = {0, -1},
-    [DOWN] = {0, 1}
-    
+    [UP] = {0, -1}
+
 };
 
 int LEVEL[23][20] = {
@@ -102,8 +102,8 @@ int LEVEL[23][20] = {
     {1, 2, 2, 2, 2, 1, 2, 2, 2, 1, 1, 2, 2, 2, 1, 2, 2, 2, 2, 1},
     {1, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1},
     {0, 0, 0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0},
-    {0, 0, 0, 1, 2, 1, 2, 1, 9, 9, 9, 9, 1, 2, 1, 2, 1, 0, 0, 0},
-    {1, 1, 1, 1, 2, 1, 2, 1, 3, 4, 5, 6, 1, 2, 1, 2, 1, 1, 1, 1},
+    {0, 0, 0, 1, 2, 1, 2, 1, 3, 4, 5, 6, 1, 2, 1, 2, 1, 0, 0, 0},
+    {1, 1, 1, 1, 2, 1, 2, 1, 9, 9, 9, 9, 1, 2, 1, 2, 1, 1, 1, 1},
     {1, 0, 0, 0, 2, 2, 2, 1, 9, 9, 9, 9, 1, 2, 2, 2, 0, 0, 0, 1},
     {1, 1, 1, 1, 2, 1, 2, 1, 9, 9, 9, 9, 1, 2, 1, 2, 1, 1, 1, 1},
     {0, 0, 0, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 0, 0, 0},
@@ -134,7 +134,7 @@ int i, j;
 int lettersCount = 0;
 static float alpha = 1.0f;
 int abs(int n);
-int ghostMoveRandomPossibility = 15;
+int ManhattanDistance(int x1, int y1, int x2, int y2);
 
 void DrawBlank(int column, int row);
 void DrawWall(int column, int row);
@@ -152,12 +152,11 @@ Ghosts ghosts[4] = {
     {11, 10, CHASE, RED, BLINKY, LAIR},
     {10, 10, CHASE, PINK, PINKY, LAIR},
     {9, 10, CHASE, ORANGE, INKY, LAIR},
-    {8, 10, CHASE, TURQUOISE, CLYDE, LAIR}
-};
+    {8, 10, CHASE, TURQUOISE, CLYDE, LAIR}};
 struct Pacman pacman = {false, 9, 14, 0};
 
 int score = 0;
-double time;
+double game_time;
 double start_time;
 double passed_time;
 double frightened_time;
@@ -170,7 +169,7 @@ void RenderMap();
 void UpdateGameplay();
 void CheckPlayPause();
 void CheckGhostsFrightened();
-void MoveGhost(Ghosts ghost, int randomPercent);
+void MoveGhost(Ghosts ghost);
 void UpdatePacman();
 void UpdateGhosts();
 
@@ -178,7 +177,6 @@ void Update();
 void Render();
 
 static int framesCounter = 0;
-
 
 int main(void)
 {
@@ -455,7 +453,8 @@ void UpdateGameplay()
     case START:
     {
         DrawOutlinedText("Press Enter to Start the Game!", center.x - MeasureText("Press Enter to Start the Game!", font_size_sml) / 2, center.y, font_size_sml, BLACK, 1, WHITE);
-        if (IsKeyPressed(KEY_ENTER)){
+        if (IsKeyPressed(KEY_ENTER))
+        {
             currentPlayStatus = PLAY;
             start_time = GetTime();
             pacman.isMoving = true;
@@ -466,29 +465,30 @@ void UpdateGameplay()
     {
         CheckPlayPause();
         DrawOutlinedText("| | GAME PAUSED | |", center.x - MeasureText("| | GAME PAUSED | |", font_size_sml) / 2, center.y, font_size_sml, BLACK, 1, WHITE);
-        
     }
     break;
     case PLAY:
     {
-        time = GetTime();
-        passed_time = time - start_time;
+        game_time = GetTime();
+        passed_time = game_time - start_time;
         CheckPlayPause();
         UpdatePacman();
         CheckGhostsFrightened();
         // Move Ghosts
         UpdateGhosts();
         // Check collision with ghosts again
-        
+
         // Check finish
     }
     case LOSE:
     {
-    } break;
-    
-    case WIN:{
-        
-    } break;
+    }
+    break;
+
+    case WIN:
+    {
+    }
+    break;
     }
 }
 
@@ -496,134 +496,127 @@ void CheckPlayPause()
 {
     if (IsKeyPressed(KEY_ENTER))
     {
-        if (currentPlayStatus == PLAY){
+        if (currentPlayStatus == PLAY)
+        {
             currentPlayStatus = PAUSE;
             pacman.isMoving = false;
         }
-        else{
+        else
+        {
             currentPlayStatus = PLAY;
             pacman.isMoving = true;
         }
     }
 }
 
-void UpdatePacman() {
-    for (Direction dir = LEFT; dir <= UP; dir++) {
-        if (IsKeyPressed(DIRECTION_KEYS[dir])) {
+void UpdatePacman()
+{
+    for (Direction dir = LEFT; dir <= UP; dir++)
+    {
+        if (IsKeyPressed(DIRECTION_KEYS[dir]))
+        {
             Vector2 move = DIRECTION_MOVES[dir];
             int newX = pacman.xpos + move.x;
             int newY = pacman.ypos + move.y;
-            
+
             int adjacentCell = LEVEL[newY][newX];
-            
-            switch (adjacentCell) {
-                case BLINKY:
-                case PINKY:
-                case INKY:
-                case CLYDE:
-                    currentPlayStatus = LOSE;
-                    break;
-                case BLANKSPACE:
-                    LEVEL[pacman.ypos][pacman.xpos] = 0;
-                    LEVEL[newY][newX] = 8;
-                    pacman.xpos = newX;
-                    pacman.ypos = newY;
-                    pacman.direction = dir;
-                    break;
-                case DOT:
-                    LEVEL[pacman.ypos][pacman.xpos] = 0;
-                    LEVEL[newY][newX] = 8;
-                    pacman.xpos = newX;
-                    pacman.ypos = newY;
-                    pacman.direction = dir;
-                    GameScore += 200;
-                    break;
-                case PILL:
-                    LEVEL[pacman.ypos][pacman.xpos] = 0;
-                    LEVEL[newY][newX] = 8;
-                    pacman.xpos = newX;
-                    pacman.ypos = newY;
-                    pacman.direction = dir;
-                    GameScore += 500;
-                    frightened_start_time = GetTime();
-                    for (int c = 0; c < 4; c++){
-                        ghosts[c].mode = FRIGHTENED;
-                    }
-                    
-                    break;
-                default:
-                    break;
+
+            switch (adjacentCell)
+            {
+            case BLINKY:
+            case PINKY:
+            case INKY:
+            case CLYDE:
+                currentPlayStatus = LOSE;
+                break;
+            case BLANKSPACE:
+                LEVEL[pacman.ypos][pacman.xpos] = 0;
+                LEVEL[newY][newX] = 8;
+                pacman.xpos = newX;
+                pacman.ypos = newY;
+                pacman.direction = dir;
+                break;
+            case DOT:
+                LEVEL[pacman.ypos][pacman.xpos] = 0;
+                LEVEL[newY][newX] = 8;
+                pacman.xpos = newX;
+                pacman.ypos = newY;
+                pacman.direction = dir;
+                GameScore += 200;
+                break;
+            case PILL:
+                LEVEL[pacman.ypos][pacman.xpos] = 0;
+                LEVEL[newY][newX] = 8;
+                pacman.xpos = newX;
+                pacman.ypos = newY;
+                pacman.direction = dir;
+                GameScore += 500;
+                frightened_start_time = GetTime();
+                for (int c = 0; c < 4; c++)
+                {
+                    ghosts[c].mode = FRIGHTENED;
+                }
+
+                break;
+            default:
+                break;
             }
             break;
         }
     }
 }
 
-void CheckGhostsFrightened(){
-    if (ghosts[0].mode == FRIGHTENED){
-        frightened_time = time - frightened_start_time;
-        if (frightened_time >= 4){
-            for (int c = 0; c < 4; c++){
+void CheckGhostsFrightened()
+{
+    if (ghosts[0].mode == FRIGHTENED)
+    {
+        frightened_time = game_time - frightened_start_time;
+        if (frightened_time >= 4)
+        {
+            for (int c = 0; c < 4; c++)
+            {
                 ghosts[c].mode = CHASE;
             }
         }
     }
 }
 
-void UpdateGhosts(){
-    if (!((int) time % 2) && time == (int) time){
-        for (int c = 0; c < 4; c++){
-                MoveGhost(ghosts[c], GetRandomValue(1,100));
-            }
+void UpdateGhosts()
+{
+    if ((int)passed_time % 2 == 0)
+    {
+        for (int c = 0; c < 4; c++)
+        {
+            MoveGhost(ghosts[c]);
+        }
     }
 }
 
-void MoveGhost(Ghosts ghost, int randomPercent){
-    Vector2 move;
-    if (randomPercent < ghostMoveRandomPossibility){
-        int dir = GetRandomValue(LEFT, UP);
-        move = DIRECTION_MOVES[dir];       
-    } else {
-        if ((abs(pacman.xpos - ghost.xpos) - abs(pacman.ypos - ghost.ypos)) >= 0){
-            if ((pacman.ypos - ghost.ypos) > 0){
-                move = DIRECTION_MOVES[UP];
-            } else {
-                move = DIRECTION_MOVES[DOWN];
-            }
-        } else{
-            if ((pacman.xpos - ghost.xpos) > 0){
-                move = DIRECTION_MOVES[RIGHT];
-            } else {
-                move = DIRECTION_MOVES[LEFT];
-            }
-        }
-    }
-    if (ghost.mode == FRIGHTENED) {
-        move.x *= -1;
-        move.y *= -1;
-    }
-    
+void MoveGhost(Ghosts ghost)
+{
+    Vector2 move = DIRECTION_MOVES[UP];
+
     int newX = ghost.xpos + move.x;
     int newY = ghost.ypos + move.y;
     int nextCell = LEVEL[newY][newX];
-    
-    switch (nextCell) {
-                case 8:
-                    currentPlayStatus = LOSE;
-                    break;
-                case 0:
-                case 2:
-                case 7:
-                    LEVEL[ghost.ypos][ghost.xpos] = ghost.lastNum;
-                    LEVEL[newY][newX] = ghost.num;
-                    ghost.xpos = newX;
-                    ghost.ypos = newY;
-                    break;
-                default:
-                    break;
-            }
+
+    if (nextCell == PACMAN)
+        currentPlayStatus = LOSE;
+    else if (nextCell == BLANKSPACE || nextCell == DOT || nextCell == PILL)
+    {
+        LEVEL[ghost.ypos][ghost.xpos] = ghost.lastNum;
+        ghost.lastNum = nextCell;
+        LEVEL[newY][newX] = ghost.num;
+        ghost.xpos = newX;
+        ghost.ypos = newY;
+    }
 }
 
-int abs(int n) {
+int abs(int n)
+{
     return (n < 0) ? -n : n;
+}
+
+int ManhattanDistance(int x1, int y1, int x2, int y2) {
+    return abs(x1 - x2) + abs(y1 - y2);
 }
