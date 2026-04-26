@@ -30,7 +30,7 @@ add_executable(${PROJECT_NAME} main.c)
 target_link_libraries(${PROJECT_NAME} raylib)
 
 # Web Configurations
-if (${PLATFORM} STREQUAL "Web")
+if ("${PLATFORM}" STREQUAL "Web")
     # Tell Emscripten to build an example.html file.
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".html")
 endif()
@@ -41,3 +41,5 @@ if (APPLE)
     target_link_libraries(${PROJECT_NAME} "-framework Cocoa")
     target_link_libraries(${PROJECT_NAME} "-framework OpenGL")
 endif()
+
+install(TARGETS "${PROJECT_NAME}" DESTINATION bin)
