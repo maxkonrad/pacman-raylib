@@ -9,7 +9,7 @@
       packages.default = pkgs.stdenv.mkDerivation {
         nativeBuildInputs = [ pkgs.cmake ];
         buildInputs = [ pkgs.raylib ];
-        name = "pacman-raylib";
+        name = "pacman_raylib";
         src = ./.;
       };
     };
